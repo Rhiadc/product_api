@@ -8,9 +8,17 @@ import (
 	"os/signal"
 	"productApi/handlers"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	l := log.New(os.Stdout, "products-api ", log.LstdFlags)
 
@@ -18,12 +26,20 @@ func main() {
 	ph := handlers.NewProducts(l)
 
 	// create a new serve mux and register the handlers
-	sm := http.NewServeMux()
-	sm.Handle("/", ph)
+	sm := mux.NewRouter()
 
+	getRouter := sm.Methods("GET").Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
+
+	putRouter := sm.Methods("PUT").Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProducts)
+	putRouter.Use(ph.MiddlewareValidateProduct)
+
+	postRouter := sm.Methods("POST").Subrouter()
+	postRouter.HandleFunc("/", ph.AddProduct)
 	// create a new server
 	s := http.Server{
-		Addr:         ":9090",           // configure the bind address
+		Addr:         os.Getenv("PORT"), // configure the bind address
 		Handler:      sm,                // set the default handler
 		ErrorLog:     l,                 // set the logger for the server
 		ReadTimeout:  5 * time.Second,   // max time to read request from the client
