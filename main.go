@@ -9,6 +9,7 @@ import (
 	"productApi/handlers"
 	"time"
 
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
@@ -30,6 +31,7 @@ func main() {
 
 	getRouter := sm.Methods("GET").Subrouter()
 	getRouter.HandleFunc("/", ph.GetProducts)
+	getRouter.HandleFunc("/{id:[0-9]+}", ph.GetProduct)
 
 	putRouter := sm.Methods("PUT").Subrouter()
 	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProducts)
@@ -37,6 +39,16 @@ func main() {
 
 	postRouter := sm.Methods("POST").Subrouter()
 	postRouter.HandleFunc("/", ph.AddProduct)
+
+	deleteRouter := sm.Methods("DELETE").Subrouter()
+	deleteRouter.HandleFunc("/{id:[0-9]+}", ph.DeleteProduct)
+
+	ops := middleware.RedocOpts{SpecURL: "/swagger.yaml"}
+	sh := middleware.Redoc(ops, nil)
+
+	getRouter.Handle("/docs", sh)
+	getRouter.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
+
 	// create a new server
 	s := http.Server{
 		Addr:         os.Getenv("PORT"), // configure the bind address

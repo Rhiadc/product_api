@@ -1,42 +1,30 @@
 package data
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 )
 
 // Product defines the structure for an API product
+// swagger:model
 type Product struct {
+	// the id for this user
+	//
+	// required: true
+	// min: 1
+	//
 	ID          int     `json:"id"`
-	Name        string  `json:"name"`
+	Name        string  `json:"name" validate:"required"`
 	Description string  `json:"description"`
-	Price       float32 `json:"price"`
-	SKU         string  `json:"sku"`
+	Price       float32 `json:"price" validate:"gt=0"`
+	SKU         string  `json:"sku" validate:"required,sku"`
 	CreatedOn   string  `json:"-"`
 	UpdatedOn   string  `json:"-"`
 	DeletedOn   string  `json:"-"`
 }
 
-func (p *Product) FromJSON(r io.Reader) error {
-	e := json.NewDecoder(r)
-	return e.Decode(p)
-}
-
 // Products is a collection of Product
 type Products []*Product
-
-// ToJSON serializes the contents of the collection to JSON
-// NewEncoder provides better performance than json.Unmarshal as it does not
-// have to buffer the output into an in memory slice of bytes
-// this reduces allocations and the overheads of the service
-//
-// https://golang.org/pkg/encoding/json/#NewEncoder
-func (p *Products) ToJSON(w io.Writer) error {
-	e := json.NewEncoder(w)
-	return e.Encode(p)
-}
 
 // GetProducts returns a list of products
 func GetProducts() Products {
@@ -46,6 +34,22 @@ func GetProducts() Products {
 func AddProduct(p *Product) {
 	p.ID = getNexID()
 	productList = append(productList, p)
+}
+
+func DeleteProduct(id int) error {
+	_, _, err := findProduct(id)
+	if err != nil {
+		return ErrProductNotFound
+	}
+
+	new := []*Product{}
+	for _, p := range productList {
+		if p.ID != id {
+			new = append(new, p)
+		}
+	}
+	productList = new
+	return nil
 }
 
 func UpdateProduct(id int, p *Product) error {
@@ -61,6 +65,15 @@ func UpdateProduct(id int, p *Product) error {
 }
 
 var ErrProductNotFound = fmt.Errorf("Product not found")
+
+func GetById(id int) (*Product, error) {
+	for _, p := range productList {
+		if p.ID == id {
+			return p, nil
+		}
+	}
+	return nil, ErrProductNotFound
+}
 
 func findProduct(id int) (*Product, int, error) {
 	for i, p := range productList {
